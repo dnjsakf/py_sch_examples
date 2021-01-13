@@ -1,4 +1,6 @@
-from typing import Optional, Union, Any, Callable, Iterable
+from typing import (
+  Optional, Union, Any, Callable, Iterable
+)
 
 class BaseField(object):
   def __init__(
@@ -66,7 +68,12 @@ class StringField(BaseField):
 
 class BaseModel(object):
   def __init__(self, data:Optional[Union[dict,Iterable]]=None, **kwargs):
-    pass
+    if data is not None:
+      if isinstance(data, dict):
+        self.dump(data)
+      
+      elif isinstance(data, Iterable) and hasattr(self, 'loads'):
+        self.dumps(data)
 
   def getFields(self):
     fields = list()
@@ -93,8 +100,57 @@ class BaseModel(object):
 
   def __str__(self):
     return str(self.getFields())
+    
+class ListModel(BaseModel):
+  def __init__(self, *args, **kwargs):
+    
+    self.__datas = None
+    self.__seek = 0
+    self.__length = 0
+    
+    super(ListModel, self).__init__(*args, **kwargs)
+    
+  def dumps(self, datas:Iterable):
+    res_datas = list()
+    for data in datas:
+      res_datas.append(self.dump(data))
+      
+    self.__datas = res_datas
+    self.__seek = 0
+    self.__length = len(res_datas)
+      
+    return res_datas
+    
+  def loads(self, datas:Iterable):
+    res_datas = list()
+    for data in datas:
+      res_datas.append(self.load(data))
+      
+    self.__datas = res_datas
+    self.__seek = 0
+    self.__length = len(res_datas)
+      
+    return res_datas
+    
+  def getLength(self):
+    return self.__length
+    
+  def __iter__(self):
+    return self
+    
+  def __next__(self):
+    if self.__seek < self.__length:
+      data = self.__datas[self.__seek]
+      self.__seek += 1
+      return data
+    else:
+      raise StopIteration
 
 class DummyModel(BaseModel):
+  id = StringField(name="ID", required=True, maxlength=10)
+  name = StringField(name="NAME", maxlength=10)
+  
+class DummyListModel(ListModel):
   id = StringField(name="ID", required=True, maxlength=10)
   name = StringField(name="NAME", maxlength=10)
 
@@ -110,8 +166,22 @@ model1_data = model1.dump({
 })
 model2 = DummyModel()
 
+list_model1 = DummyListModel()
+list_model2 = DummyListModel([
+  {"id": "tesasdfasdfasdft"},
+  {"id": "test2"}
+])
+
 print( text1 )
 print( text2 )
 
 print( model1_data )
 print( model2 )
+
+print( list_model1 )
+for data in list_model1:
+  print( data )
+
+print( list_model2 )
+for data in list_model2:
+  print( data )
